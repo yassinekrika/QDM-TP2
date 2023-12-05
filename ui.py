@@ -89,6 +89,8 @@ class App(tkinter.Tk):
         self.quality_label.grid(row=4, column=1, pady=10)
 
         print('quality', quality)
+
+        return quality
         
     def estimate_GGD_parameters(self, vec):
         gam =np.arange(0.2, 10.0, 0.001)#Generate candidate γ
@@ -173,9 +175,7 @@ class App(tkinter.Tk):
             image_origin_array = []
             image_degraded_array = []
 
-            ssim_result_array = []
-            ms_ssim_result_array = []
-            psnr_result_array = []
+            visual_quality_array = []
 
             for line in lines:
                 image_origin = line.split(' ')[0]
@@ -194,21 +194,15 @@ class App(tkinter.Tk):
                 x = x.astype(np.float64)
                 y = y.astype(np.float64)
 
-                ssim_result = self.ssim(x, y)
-                ms_ssim_result = self.ms_ssim(x, y)
-                psnr_result = self.psnr(x, y)
+                visual_quality_result = self.calcualte_visual_quality(x, y)
 
-                ms_ssim_result_array.append(ms_ssim_result)
-                ssim_result_array.append(ssim_result)
-                psnr_result_array.append(psnr_result)
+                visual_quality_array.append(visual_quality_result)
 
-                print(image_origin, image_degraded, ssim_result, ms_ssim_result, psnr_result)
+                print(image_origin, image_degraded, visual_quality_result)
                 
             df = pd.DataFrame({'image_origin': image_origin_array, 
                                 'image_degraded': image_degraded_array, 
-                                'ssim_result': ssim_result_array, 
-                                'ms_ssim_result': ms_ssim_result_array, 
-                                'psnr_result': psnr_result_array
+                                'visual_quality': visual_quality_array, 
                                 })
             df.to_excel('objective.xlsx', index=False)
 
@@ -244,62 +238,26 @@ class App(tkinter.Tk):
         self.open_comparaison_folder()
     
     def open_comparaison_folder(self):
-        df = pd.read_excel('/home/yassg4mer/Downloads/Py/objective.xlsx', usecols=['ssim_result', 'ms_ssim_result', 'psnr_result'] )
+        df = pd.read_excel('/home/yassg4mer/Downloads/Py/objective.xlsx', usecols=['visual_quality'] )
         dff = pd.read_excel('/home/yassg4mer/Downloads/Py/subjective.xlsx', usecols=['subjective_result'] )
 
 
-        rmse_psnr_result_array = []
-        pcc_psnr_result_array = []
-        rho_psnr_result_array = []
-
-        rmse_ssim_result_array = []
-        pcc_ssim_result_array = []
-        rho_ssim_result_array = []
-
-        rmse_ms_ssim_result_array = []
-        pcc_ms_ssim_result_array = []
-        rho_ms_ssim_result_array = []
+        vq_pcc_array = []
+        vq_rho_array = []
 
 
-        # psnr result
-        rmse_psnr_result = self.rmse(df['psnr_result'], dff['subjective_result'])
-        pcc_psnr_result = self.pcc(df['psnr_result'], dff['subjective_result'])
-        rho_psnr_result = self.rho(df['psnr_result'], dff['subjective_result'])
+        pcc_result = self.pcc(df['visual_quality'], dff['subjective_result'])
+        rho_result = self.rho(df['visual_quality'], dff['subjective_result'])
 
-        # ssim result
-        rmse_ssim_result = self.rmse(df['ssim_result'], dff['subjective_result'])
-        pcc_ssim_result = self.pcc(df['ssim_result'], dff['subjective_result'])
-        rho_ssim_result = self.rho(df['ssim_result'], dff['subjective_result'])
+        vq_pcc_array.append(pcc_result)
+        vq_rho_array.append(rho_result)
 
-        # ms_ssim result
-        rmse_ms_ssim_result = self.rmse(df['ms_ssim_result'], dff['subjective_result'])
-        pcc_ms_ssim_result = self.pcc(df['ms_ssim_result'], dff['subjective_result'])
-        rho_ms_ssim_result = self.rho(df['ms_ssim_result'], dff['subjective_result'])
+  
 
-        rmse_psnr_result_array.append(rmse_psnr_result)
-        pcc_psnr_result_array.append(pcc_psnr_result)
-        rho_psnr_result_array.append(rho_psnr_result)
-
-        rmse_ssim_result_array.append(rmse_ssim_result)
-        pcc_ssim_result_array.append(pcc_ssim_result)
-        rho_ssim_result_array.append(rho_ssim_result)
-
-        rmse_ms_ssim_result_array.append(rmse_ms_ssim_result)
-        pcc_ms_ssim_result_array.append(pcc_ms_ssim_result)
-        rho_ms_ssim_result_array.append(rho_ms_ssim_result)
-
-        dfff = pd.DataFrame({ # psnr
-                    'rmse_psnr_result': rmse_psnr_result_array, 
-                    'pcc_psnr_result': pcc_psnr_result_array,
-                    'rho_psnr_result': rho_psnr_result_array, 
-                    # ssim
-                    'rmse_ssim_result': rmse_ssim_result_array,
-                    'pcc_ssim_result': pcc_ssim_result_array,
-                    'rho_ssim_result': rho_ssim_result_array,
-                    # ms_ssim
-                    'rmse_ms_ssim_result': rmse_ms_ssim_result_array,
-                    'pcc_ms_ssim_result': pcc_ms_ssim_result_array,
-                    'rho_ms_ssim_result': rho_ms_ssim_result_array,})
+        dfff = pd.DataFrame({ 
+                                'vq_pcc': vq_pcc_array, 
+                                'vq_rho': vq_rho_array,
+        })
 
         dfff.to_excel('comparaison.xlsx', index=False)
 
