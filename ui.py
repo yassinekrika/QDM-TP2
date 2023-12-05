@@ -162,6 +162,35 @@ class App(tkinter.Tk):
 
         return distance
 
+    def calculate_visulal_quality_all(self, x, y):
+        level = 3
+        coeffs_x = pywt.wavedec2(x, 'db1', level=level)
+        coeffs_y = pywt.wavedec2(y, 'db1', level=level)
+
+        vector_shape_x = []
+        vector_shape_y = []
+
+        for i in range(1, level + 1):
+            for j in range(3):
+                alpha_x, beta_x = self.estimate_GGD_parameters(coeffs_x[i][j])
+                alpha_y, beta_y = self.estimate_GGD_parameters(coeffs_y[i][j])
+
+                x = np.linspace(min(coeffs_x[i][j].flatten()), max(coeffs_x[i][j].flatten()), 100)
+                ggd_curve_x = gennorm.pdf(x, alpha_x, 0, beta_x)
+                vector_shape_x.append(ggd_curve_x)
+
+                x = np.linspace(min(coeffs_y[i][j].flatten()), max(coeffs_y[i][j].flatten()), 100)
+                ggd_curve_y = gennorm.pdf(x, alpha_y, 0, beta_y)
+                vector_shape_y.append(ggd_curve_y)
+
+        distance = []
+        for i in range(len(vector_shape_x)):
+            distance.append(self.calculate_city_block_distance(vector_shape_x[i], vector_shape_y[i]))
+
+        quality = self.quality(distance)
+
+        return quality
+
     def calculate_objective_result(self):
         self.targer_folder = filedialog.askdirectory(initialdir = "/home/yassg4mer/Downloads/Py/",title = "Select folder")
         self.open_folder()
@@ -194,7 +223,7 @@ class App(tkinter.Tk):
                 x = x.astype(np.float64)
                 y = y.astype(np.float64)
 
-                visual_quality_result = self.calcualte_visual_quality(x, y)
+                visual_quality_result = self.calculate_visulal_quality_all(x, y)
 
                 visual_quality_array.append(visual_quality_result)
 
@@ -238,8 +267,8 @@ class App(tkinter.Tk):
         self.open_comparaison_folder()
     
     def open_comparaison_folder(self):
-        df = pd.read_excel('/home/yassg4mer/Downloads/Py/objective.xlsx', usecols=['visual_quality'] )
-        dff = pd.read_excel('/home/yassg4mer/Downloads/Py/subjective.xlsx', usecols=['subjective_result'] )
+        df = pd.read_excel('/home/yassg4mer/Project/QDM-TP2/objective.xlsx', usecols=['visual_quality'] )
+        dff = pd.read_excel('/home/yassg4mer/Project/QDM-TP2/subjective.xlsx', usecols=['subjective_result'] )
 
 
         vq_pcc_array = []
