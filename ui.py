@@ -33,13 +33,13 @@ class App(tkinter.Tk):
         self.image1_label = Label(self, text="Image 1:")
         self.image1_label.grid(row=0, column=1, padx=10, pady=10)
         
-        self.image1_button = Button(self, text="Upload Image 1", command=self.upload_image1)
+        self.image1_button = Button(self, text="Upload Image O", command=self.upload_image1)
         self.image1_button.grid(row=0, column=0, padx=10, pady=10)
 
         self.image2_label = Label(self, text="Image 2:")
         self.image2_label.grid(row=1, column=1, padx=10, pady=10)
 
-        self.image2_button = Button(self, text="Upload Image 2", command=self.upload_image2)
+        self.image2_button = Button(self, text="Upload Image D", command=self.upload_image2)
         self.image2_button.grid(row=1, column=0, padx=10, pady=10)
 
         self.clear_button = Button(self, text="Clear Images", command=self.clear_images)
@@ -78,10 +78,11 @@ class App(tkinter.Tk):
         self.image2_label.destroy()
 
     def calcualte_visual_quality(self):
-        original_vector = self.process_original_image()
         destored_vector = self.process_destored_image()
+        original_vector = self.process_original_image(destored_vector)
 
         # Calculate city block distance between vectors
+        print(len(original_vector), len(destored_vector))
         distance = []
         for i in range(len(original_vector)):
             distance.append(self.calculate_city_block_distance(original_vector[i], destored_vector[i]))
@@ -94,7 +95,7 @@ class App(tkinter.Tk):
 
         return quality
         
-    def estimate_GGD_parameters(self, vec):
+    def ggd_alpha_beta(self, vec):
         gam =np.arange(0.2, 10.0, 0.001)
         r_gam = (gamma(1/gam)*gamma(3/gam))/((gamma(2/gam))**2)
         sigma_sq=np.mean((vec)**2)
@@ -107,21 +108,13 @@ class App(tkinter.Tk):
 
         return alpha, beta
 
-    def GGD_vec(self, alpha, beta):
+    def GGD_vec(self, alpha, beta, destored_vector):
         mad = beta * np.sqrt(gamma(1 / alpha) / gamma(3 / alpha))
         sigma = mad / np.sqrt(2)
-        vec_size = 1000  # Assuming the original vector size is 1000
+        vec_size = len(destored_vector) 
         vec = sigma * np.random.standard_t(alpha, size=vec_size)
         return vec
 
-    
-
-
-    # def GGD(self, x, alpha, beta):
-
-    #     coefficien=alpha/(2*beta*gamma(1/alpha))
-
-    #     return coefficien*np.exp((-(np.abs(x)/beta)**alpha))
 
     def quality(self, subands):
         somme=0
@@ -129,17 +122,18 @@ class App(tkinter.Tk):
             somme += np.log10(1 + dcity)
         return (1/len(subands)) * somme
 
-    def process_original_image(self):
+    def process_original_image(self, destored_vector):
         level = 3
         coeffs_original_image = pywt.wavedec2(self.image1, 'db1', level=level)
         vector_shape = []
+        index = 0
 
         for i in range(1, level + 1):
             for j in range(3):
-                alpha, beta = self.estimate_GGD_parameters(coeffs_original_image[i][j])
+                alpha, beta = self.ggd_alpha_beta(coeffs_original_image[i][j])
 
-                # x = np.linspace(min(coeffs_original_image[i][j].flatten()), max(coeffs_original_image[i][j].flatten()), 100)
-                ggd_curve = self.GGD_vec(alpha, beta)
+                ggd_curve = self.GGD_vec(alpha, beta, destored_vector[index])
+                index += 1
                 vector_shape.append(ggd_curve)
         
 
@@ -162,15 +156,9 @@ class App(tkinter.Tk):
         return vector_shape
 
     def calculate_city_block_distance(self, vector1, vector2):
-
-        min_len = min(len(vector1), len(vector2))
-        vector1_resampled = np.interp(np.linspace(0, 1, min_len), np.linspace(0, 1, len(vector1)), vector1)
-        vector2_resampled = np.interp(np.linspace(0, 1, min_len), np.linspace(0, 1, len(vector2)), vector2)
-
-
-        distance = cityblock(vector1_resampled, vector2_resampled)
-        distance2 = np.linalg.norm(vector1_resampled - vector2_resampled, ord=1)
-
+        distance = 0
+        for i in range(len(vector1)):
+            distance += abs(vector1[i] - vector2[i])
         return distance
 
     def calculate_visulal_quality_all(self, x, y):
@@ -183,8 +171,8 @@ class App(tkinter.Tk):
 
         for i in range(1, level + 1):
             for j in range(3):
-                alpha_x, beta_x = self.estimate_GGD_parameters(coeffs_x[i][j])
-                alpha_y, beta_y = self.estimate_GGD_parameters(coeffs_y[i][j])
+                alpha_x, beta_x = self.ggd_alpha_beta(coeffs_x[i][j])
+                alpha_y, beta_y = self.ggd_alpha_beta(coeffs_y[i][j])
 
                 x = np.linspace(min(coeffs_x[i][j].flatten()), max(coeffs_x[i][j].flatten()), 100)
                 ggd_curve_x = gennorm.pdf(x, alpha_x, 0, beta_x)
