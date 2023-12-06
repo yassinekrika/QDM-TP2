@@ -9,6 +9,8 @@ import pywt
 import matplotlib.pyplot as plt 
 from scipy.special import gamma
 from scipy.stats import gennorm
+from scipy.optimize import fsolve
+
 from scipy.spatial.distance import cityblock
 
 
@@ -93,23 +95,33 @@ class App(tkinter.Tk):
         return quality
         
     def estimate_GGD_parameters(self, vec):
-        gam =np.arange(0.2, 10.0, 0.001)#Generate candidate γ
-        r_gam = (gamma(1/gam)*gamma(3/gam))/((gamma(2/gam))**2)# Calculate r(γ) from candidate γ
-        sigma_sq=np.mean((vec)**2)#σ^2 zero mean estimation,non-zero mean needs to calculate the mean and then according to(3)
+        gam =np.arange(0.2, 10.0, 0.001)
+        r_gam = (gamma(1/gam)*gamma(3/gam))/((gamma(2/gam))**2)
+        sigma_sq=np.mean((vec)**2)
         sigma=np.sqrt(sigma_sq)
         E=np.mean(np.abs(vec))
-        r=sigma_sq/(E**2)#calculate r(γ) from sigma and E
+        r=sigma_sq/(E**2)
         diff=np.abs(r-r_gam)
         alpha=gam[np.argmin(diff, axis=0)]
         beta = sigma * np.sqrt(gamma(1 / alpha) / gamma(3 / alpha))
 
         return alpha, beta
 
-    def GGD(self, x, alpha, beta):
+    def GGD_vec(self, alpha, beta):
+        mad = beta * np.sqrt(gamma(1 / alpha) / gamma(3 / alpha))
+        sigma = mad / np.sqrt(2)
+        vec_size = 1000  # Assuming the original vector size is 1000
+        vec = sigma * np.random.standard_t(alpha, size=vec_size)
+        return vec
 
-        coefficien=alpha/(2*beta*gamma(1/alpha))
+    
 
-        return coefficien*np.exp((-(np.abs(x)/beta)**alpha))
+
+    # def GGD(self, x, alpha, beta):
+
+    #     coefficien=alpha/(2*beta*gamma(1/alpha))
+
+    #     return coefficien*np.exp((-(np.abs(x)/beta)**alpha))
 
     def quality(self, subands):
         somme=0
@@ -122,15 +134,14 @@ class App(tkinter.Tk):
         coeffs_original_image = pywt.wavedec2(self.image1, 'db1', level=level)
         vector_shape = []
 
-
-        # Print each subband and estimate GGD parameters
         for i in range(1, level + 1):
             for j in range(3):
                 alpha, beta = self.estimate_GGD_parameters(coeffs_original_image[i][j])
 
-                x = np.linspace(min(coeffs_original_image[i][j].flatten()), max(coeffs_original_image[i][j].flatten()), 100)
-                ggd_curve = gennorm.pdf(x, alpha, 0, beta)
+                # x = np.linspace(min(coeffs_original_image[i][j].flatten()), max(coeffs_original_image[i][j].flatten()), 100)
+                ggd_curve = self.GGD_vec(alpha, beta)
                 vector_shape.append(ggd_curve)
+        
 
         return vector_shape
 
